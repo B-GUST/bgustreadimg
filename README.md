@@ -1,21 +1,10 @@
-# bgustreadimg (bgustdown-img) 🖼️
+# bgustreadimg  🖼️
 
 **Preprocesador de Imágenes de Alta Fidelidad y Limpieza Adaptativa para Motores de OCR.**
 
 `bgustreadimg` es un microservicio y biblioteca en Rust (con bindings nativos de Node.js mediante NAPI-RS) diseñado específicamente para optimizar imágenes y fotografías de documentos (como facturas físicas, contratos o capturas de cámara) antes de ser enviadas a motores de reconocimiento de texto (OCR).
 
 A diferencia de los convertidores de formato convencionales, su función principal es preparar la imagen eliminando sombras, arrugas y variaciones de luz no uniformes, garantizando que el texto final sea extremadamente nítido y legible.
-
----
-
-## 🌟 Diferencias Clave con `bgustdown`
-
-| Módulo | `bgustdown` (Core) | `bgustreadimg` |
-| :--- | :--- | :--- |
-| **Rol** | Motor de Ingesta y ETL de Documentos. | Preprocesador Físico de Imágenes para OCR. |
-| **Formatos** | PDF, DOCX, XLSX, ODT, CSV. | PNG, JPEG, JPG, WEBP. |
-| **Salida** | Markdown Estructurado y Tablas Apache Arrow. | Búfer de Imagen (`Luma8` binarizado en PNG sin pérdidas). |
-| **Enfoque** | Extracción semántica y optimización de tokens. | Calidad de imagen y corrección de contraste adaptativo. |
 
 ---
 
