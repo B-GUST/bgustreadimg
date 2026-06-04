@@ -4,7 +4,7 @@ version = "0.1.4"
 edition = "2021"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [workspace]
 
@@ -14,6 +14,8 @@ napi-derive = "2.12.0"
 image = { version = "0.24.7", default-features = false, features = ["png", "jpeg"] }
 sysinfo = "0.29.11"
 tokio = { version = "1.28.0", features = ["rt", "rt-multi-thread"] }
+ort = "2.0.0-rc.9" # latest pre-release/release that is stable for 2.0
+ndarray = "0.15"
 
 [build-dependencies]
 napi-build = "2.0.1"

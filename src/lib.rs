@@ -6,6 +6,16 @@ use napi_derive::napi;
 use std::io::Cursor;
 use sysinfo::{System, SystemExt};
 
+pub mod layout;
+pub mod ocr;
+
+#[derive(Clone)]
+pub struct PreprocessConfigRs {
+  pub window_size: Option<u32>,
+  pub k: Option<f64>,
+  pub target_width: Option<u32>,
+}
+
 #[napi(object)]
 pub struct PreprocessConfig {
   pub window_size: Option<u32>,
@@ -78,10 +88,7 @@ pub fn sauvola_threshold(img: &GrayImage, window_size: u32, k: f32) -> GrayImage
   out_img
 }
 
-#[napi]
-pub async fn preprocess_image(input_buf: Buffer, config: Option<PreprocessConfig>) -> Result<Buffer> {
-  let data = input_buf.to_vec();
-
+pub async fn preprocess_image_rs(data: Vec<u8>, config: Option<PreprocessConfigRs>) -> std::result::Result<Vec<u8>, String> {
   // Obtener parámetros de configuración con valores por defecto
   let (window_size, k_param, user_target_width) = match config {
     Some(cfg) => (
@@ -112,14 +119,14 @@ pub async fn preprocess_image(input_buf: Buffer, config: Option<PreprocessConfig
     // 2. Cargar metadatos rápida sin decodificar toda la imagen en RAM
     let reader = Reader::new(Cursor::new(&data))
       .with_guessed_format()
-      .map_err(|e| Error::new(Status::InvalidArg, format!("Formato no soportado: {}", e)))?;
+      .map_err(|e| format!("Formato no soportado: {}", e))?;
 
     let format = reader.format().ok_or_else(|| {
-      Error::new(Status::InvalidArg, "No se pudo determinar el formato de imagen".to_string())
+      "No se pudo determinar el formato de imagen".to_string()
     })?;
 
     let dimensions = reader.into_dimensions().map_err(|e| {
-      Error::new(Status::InvalidArg, format!("No se pudieron leer las dimensiones de la imagen: {}", e))
+      format!("No se pudieron leer las dimensiones de la imagen: {}", e)
     })?;
 
     let width = dimensions.0;
@@ -127,7 +134,7 @@ pub async fn preprocess_image(input_buf: Buffer, config: Option<PreprocessConfig
 
     // 3. Decodificar la imagen real
     let img = image::load_from_memory_with_format(&data, format).map_err(|e| {
-      Error::new(Status::GenericFailure, format!("Error al decodificar la imagen: {}", e))
+      format!("Error al decodificar la imagen: {}", e)
     })?;
 
     // 4. Redimensionar si supera la resolución objetivo
@@ -147,11 +154,26 @@ pub async fn preprocess_image(input_buf: Buffer, config: Option<PreprocessConfig
     // 7. Escribir búfer de salida como PNG sin pérdidas
     let mut output_buf = Vec::new();
     contrast_img.write_to(&mut Cursor::new(&mut output_buf), ImageFormat::Png).map_err(|e| {
-      Error::new(Status::GenericFailure, format!("Error al codificar imagen de salida: {}", e))
+      format!("Error al codificar imagen de salida: {}", e)
     })?;
 
     Ok(output_buf)
-  }).await.map_err(|e| Error::new(Status::GenericFailure, format!("Fallo del hilo de trabajo: {}", e)))?;
+  }).await.map_err(|e| format!("Fallo del hilo de trabajo: {}", e))?;
 
-  result.map(Buffer::from)
+  result
+}
+
+#[napi]
+pub async fn preprocess_image(input_buf: Buffer, config: Option<PreprocessConfig>) -> Result<Buffer> {
+  let data = input_buf.to_vec();
+  let rs_config = config.map(|c| PreprocessConfigRs {
+      window_size: c.window_size,
+      k: c.k,
+      target_width: c.target_width,
+  });
+
+  match preprocess_image_rs(data, rs_config).await {
+      Ok(buf) => Ok(Buffer::from(buf)),
+      Err(e) => Err(Error::new(Status::GenericFailure, e)),
+  }
 }

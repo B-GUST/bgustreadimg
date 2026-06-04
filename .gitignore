@@ -17,3 +17,6 @@ package-lock.json
 .vscode/
 .idea/
 .DS_Store
+
+# Ignore models binaries
+models/
