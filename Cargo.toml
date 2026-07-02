@@ -1,7 +1,15 @@
 [package]
 name = "bgustreadimg"
 version = "0.1.4"
+description = "Adaptive image preprocessing engine for OCR — Sauvola binarization, layout detection, and ONNX-based OCR inference"
+authors = ["B-GUST"]
+license = "MIT"
 edition = "2021"
+readme = "README.md"
+repository = "https://github.com/B-GUST/bgustreadimg"
+homepage = "https://github.com/B-GUST/bgustreadimg"
+keywords = ["ocr", "image-processing", "sauvola", "binarization", "preprocessing"]
+categories = ["computer-vision", "multimedia::images"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -14,7 +22,7 @@ napi-derive = "2.12.0"
 image = { version = "0.24.7", default-features = false, features = ["png", "jpeg"] }
 sysinfo = "0.29.11"
 tokio = { version = "1.28.0", features = ["rt", "rt-multi-thread"] }
-ort = "2.0.0-rc.9" # latest pre-release/release that is stable for 2.0
+ort = "2.0.0-rc.9"
 ndarray = "0.15"
 
 [build-dependencies]

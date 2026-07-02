@@ -9,8 +9,18 @@ Cargo.lock
 package-lock.json
 *.tgz
 
-# Extensiones nativas NAPI-RS compiladas
+# NAPI-RS compiled native bindings
 *.node
+
+# Testing artifacts
+cli.js
+generate_test_*.py
+test_*.py
+test_*.js
+*.png
+*.jpg
+*.jpeg
+tessdata/
 
 # IDEs & System
 .GCC/
@@ -18,5 +28,5 @@ package-lock.json
 .idea/
 .DS_Store
 
-# Ignore models binaries
+# ONNX model binaries (download on demand)
 models/

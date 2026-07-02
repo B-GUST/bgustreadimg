@@ -1,50 +1,141 @@
-# bgustreadimg  🖼️
+# bgustreadimg
 
-**Preprocesador de Imágenes de Alta Fidelidad y Limpieza Adaptativa para Motores de OCR.**
-
-`bgustreadimg` es un microservicio y biblioteca en Rust (con bindings nativos de Node.js mediante NAPI-RS) diseñado específicamente para optimizar imágenes y fotografías de documentos (como facturas físicas, contratos o capturas de cámara) antes de ser enviadas a motores de reconocimiento de texto (OCR).
-
-A diferencia de los convertidores de formato convencionales, su función principal es preparar la imagen eliminando sombras, arrugas y variaciones de luz no uniformes, garantizando que el texto final sea extremadamente nítido y legible.
+**Adaptive image preprocessing engine for OCR pipelines.** Written in Rust with optional Node.js native bindings via NAPI-RS.
 
 ---
 
-## 🚀 Algoritmo de Limpieza Adaptativa (Sauvola)
+## Architecture
 
-Anteriormente, la biblioteca utilizaba umbrales de binarización estáticos y rígidos (`min 110`, `max 165`), lo cual causaba la pérdida de texto en imágenes oscuras o con sombras marcadas.
+```
+                    ┌─────────────────────┐
+                    │   Input Image       │
+                    │  (JPEG, PNG, ...)   │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │  Metadata Probe     │
+                    │  (format, dims)     │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │  Decode & Resize    │
+                    │  Lanczos3, O(1) RAM │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │  Sauvola Adaptive   │
+                    │  Binarization (SAT) │
+                    │  O(N), window_size  │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │  Layout Detection   │  ── ONNX (table-transformer)
+                    │  (optional)         │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │  OCR Inference      │  ── ONNX (surya-ocr)
+                    │  (optional)         │
+                    └─────────┬───────────┘
+                              │
+                    ┌─────────▼───────────┐
+                    │  Clean Output PNG   │
+                    └─────────────────────┘
+```
 
-En la versión **`0.1.4`**, hemos implementado el **Algoritmo de Binarización Adaptativa de Sauvola** en Rust, optimizado mediante **Imágenes Integrales (Summed Area Tables - SAT)** para ejecutarse en tiempo lineal $O(N)$ independientemente del tamaño de la ventana.
-
-El algoritmo calcula dinámicamente un umbral de contraste local $T(x,y)$ para cada píxel:
-$$T(x,y) = m(x,y) \cdot \left( 1 + k \cdot \left( \frac{s(x,y)}{R} - 1 \right) \right)$$
-Donde $m$ es la media local, $s$ es la desviación estándar local, $R = 128$ y $k = 0.2$ es el factor de sensibilidad. Esto elimina arrugas y sombras de fondos sin distorsionar los caracteres de texto.
+The core pipeline:
+1. **Probe** — reads image metadata without decoding the full bitmap into RAM
+2. **Resize** — Lanczos3 downscale to a target width (auto-selected based on available RAM)
+3. **Sauvola Binarization** — O(N) using Summed Area Tables; removes shadows, wrinkles, and non-uniform lighting
+4. **Layout detection** *(optional)* — ONNX model (table-transformer) for table region extraction
+5. **OCR inference** *(optional)* — ONNX model (surya-ocr) for end-to-end text recognition
+6. **Output** — lossless PNG
 
 ---
 
-## 🛠️ Uso y API desde Node.js
+## Project Structure
 
-### Instalación
+```
+├── Cargo.toml          # Rust crate manifest (publishable to crates.io)
+├── build.rs            # NAPI-RS build script
+├── src/
+│   ├── lib.rs          # Core: Sauvola threshold, preprocess_image, NAPI bindings
+│   ├── layout.rs       # LayoutAnalyzer — ONNX table detection
+│   └── ocr.rs          # OcrEngine — ONNX text recognition
+├── index.js            # Auto-generated NAPI-RS JS binding (entry point for npm)
+├── index.d.ts          # TypeScript type declarations
+├── models/             # ONNX model files (gitignored, downloaded on demand)
+│   ├── sury-ocr/
+│   └── table-transformer/
+└── package.json        # npm package manifest
+```
+
+---
+
+## Getting Started
+
+### As a Rust crate
+
+```toml
+[dependencies]
+bgustreadimg = "0.1"
+```
+
+```rust
+use bgustreadimg::preprocess_image_rs;
+
+let image_data = std::fs::read("input.jpg").unwrap();
+let config = Some(bgustreadimg::PreprocessConfigRs {
+    window_size: Some(25),
+    k: Some(0.2),
+    target_width: Some(1920),
+});
+
+let result = preprocess_image_rs(image_data, config).await.unwrap();
+std::fs::write("output.png", result).unwrap();
+```
+
+### As an npm package
+
 ```bash
 npm install bgustdown-img
 ```
 
-### Código de Ejemplo
 ```javascript
 const { preprocessImage } = require('bgustdown-img');
 const fs = require('fs');
 
-async function cleanInvoice() {
-  const inputBuffer = fs.readFileSync('./factura_arrugada.jpg');
-  
-  // Procesar imagen con configuración personalizada de Sauvola
-  const cleanBuffer = await preprocessImage(inputBuffer, {
-    windowSize: 25,     // Tamaño de la ventana local de análisis
-    k: 0.2,             // Sensibilidad al contraste (menor = más agresivo con las sombras)
-    targetWidth: 1920   // Ancho máximo (redimensionamiento con filtro Lanczos3)
-  });
-
-  fs.writeFileSync('./factura_lista_para_ocr.png', cleanBuffer);
-  console.log('Imagen preprocesada con éxito.');
-}
-
-cleanInvoice();
+const clean = await preprocessImage(fs.readFileSync('input.jpg'), {
+    windowSize: 25,
+    k: 0.2,
+    targetWidth: 1920,
+});
+fs.writeFileSync('output.png', clean);
 ```
+
+### Build from source
+
+```bash
+# Rust library only
+cargo build --release
+
+# With Node.js bindings
+npm install
+npm run build
+```
+
+---
+
+## Configuration
+
+| Parameter     | Default | Description |
+|---------------|---------|-------------|
+| `windowSize`  | `25`    | Local analysis window size (odd, ≥3) |
+| `k`           | `0.2`   | Contrast sensitivity (lower = more aggressive shadow removal) |
+| `targetWidth` | auto    | Max output width; auto-picks 1920 or 1280 based on free RAM |
+
+---
+
+## License
+
+MIT
