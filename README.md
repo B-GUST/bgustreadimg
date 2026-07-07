@@ -7,8 +7,8 @@
 
 <p align="center">
   <a href="https://crates.io/crates/bgustreadimg"><img src="https://img.shields.io/crates/v/bgustreadimg.svg?style=flat-square" alt="Crates Version"></a>
-  <a href="https://www.npmjs.com/package/bgustdown-img"><img src="https://img.shields.io/npm/v/bgustdown-img.svg?style=flat-square" alt="NPM Version"></a>
-  <img src="https://img.shields.io/badge/version-0.1.4-orange.svg?style=flat-square" alt="Stable Version">
+  <a href="https://www.npmjs.com/package/bgustreadimg"><img src="https://img.shields.io/npm/v/bgustreadimg.svg?style=flat-square" alt="NPM Version"></a>
+  <img src="https://img.shields.io/badge/version-0.1.5-orange.svg?style=flat-square" alt="Stable Version">
   <a href="https://github.com/B-GUST/bgustreadimg"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
 </p>
 
@@ -76,20 +76,32 @@
 ## 📦 Canales de Distribución
 
 ### 1. Canal Rust (Crates.io) 🦀
-*   **Versión Activa:** `v0.1.4`
 *   **Tipo:** Biblioteca estática (`rlib`).
 *   **Uso:**
     ```toml
     [dependencies]
-    bgustreadimg = "0.1.4"
+    bgustreadimg = "0.1.5"
     ```
 
-### 2. Canal Node.js & NPM 🟢
-*   **Versión Activa:** `v0.1.4`
+### 2. Canal Node.js & NPM (Backend) 🟢
 *   **Tipo:** Extensión nativa (`cdylib` mediante NAPI-RS).
 *   **Instalación:**
     ```bash
-    npm install bgustdown-img
+    npm install bgustreadimg
+    ```
+
+### 3. Canal Python & Pip (Maturin) 🐍
+*   **Tipo:** Módulo nativo compilado (PyO3).
+*   **Instalación:**
+    ```bash
+    pip install bgustreadimg
+    ```
+
+### 4. Canal Frontend & NPM (WebAssembly) 🌐
+*   **Tipo:** Paquete JS/WASM para navegador (`wasm-bindgen`).
+*   **Instalación:**
+    ```bash
+    npm install bgustreadimg-wasm
     ```
 
 ---
@@ -102,15 +114,23 @@
     cd bgustreadimg
     ```
 
-2.  **Compilar la librería Rust:**
-    ```bash
-    cargo build --release
-    ```
-
-3.  **Compilar bindings de Node.js (opcional):**
+2.  **Compilar para Node.js (NAPI-RS):**
     ```bash
     npm install
     npm run build
+    ```
+
+3.  **Compilar para Python (Maturin):**
+    ```bash
+    # Requiere instalar maturin
+    pip install maturin
+    PYO3_USE_ABI3_FORWARD_COMPATIBILITY=1 maturin build --release
+    ```
+
+4.  **Compilar para Frontend/Navegador (WASM):**
+    ```bash
+    # Compila a WASM y prepara el paquete listo para npm en pkg-wasm/
+    npm run build:wasm
     ```
 
 ---
@@ -133,9 +153,9 @@ let result = preprocess_image_rs(image_data, Some(
 std::fs::write("output.png", result).unwrap();
 ```
 
-### Node.js
+### Node.js (Backend)
 ```javascript
-const { preprocessImage } = require('bgustdown-img');
+const { preprocessImage } = require('bgustreadimg');
 const fs = require('fs');
 
 const clean = await preprocessImage(fs.readFileSync('input.jpg'), {
@@ -144,6 +164,30 @@ const clean = await preprocessImage(fs.readFileSync('input.jpg'), {
     targetWidth: 1920,
 });
 fs.writeFileSync('output.png', clean);
+```
+
+### Python
+```python
+import bgustreadimg
+
+with open("input.jpg", "rb") as f:
+    data = f.read()
+
+config = bgustreadimg.PreprocessConfigPy(window_size=25, k=0.2, target_width=1920)
+clean = bgustreadimg.preprocess_image(data, config)
+
+with open("output.png", "wb") as f:
+    f.write(clean)
+```
+
+### Frontend (Navegador/WASM)
+```javascript
+import init, { preprocessImage } from 'bgustreadimg-wasm';
+
+await init(); // Inicializar módulo WASM
+
+const fileBuffer = await file.arrayBuffer();
+const cleanBuffer = preprocessImage(new Uint8Array(fileBuffer), 25, 0.2, 1280);
 ```
 
 ---
@@ -162,19 +206,25 @@ fs.writeFileSync('output.png', clean);
 
 ```
 ├── Cargo.toml          # Manifiesto Rust (publicable en crates.io)
-├── build.rs            # Script de compilación NAPI-RS
-├── src/
-│   ├── lib.rs          # Núcleo: Sauvola threshold, preprocess_image, bindings NAPI
-│   ├── layout.rs       # LayoutAnalyzer — detección de tablas con ONNX
-│   └── ocr.rs          # OcrEngine — reconocimiento de texto con ONNX
-├── index.js            # Binding NAPI-RS para Node.js (auto-generado)
-├── index.d.ts          # Declaraciones de tipos TypeScript
-├── models/             # Modelos ONNX (gitignored, descarga bajo demanda)
-│   ├── sury-ocr/
-│   └── table-transformer/
+├── pyproject.toml      # Manifiesto Python (publicable con maturin)
 ├── package.json        # Manifiesto npm
-├── CONTRIBUTING.md     # Guía de contribución
-├── CREDITS.md          # Créditos y atribuciones
+├── build.rs            # Script de compilación condicional
+├── scripts/
+│   └── prepare-wasm-pkg.js # Script de post-procesamiento para WASM
+├── docs/
+│   ├── README_WASM.md  # README del paquete frontend/WASM
+│   ├── updated_multi_platform_plan.md # Plan de arquitectura multi-plataforma
+│   └── implementation_report.md # Reporte de cambios realizados
+├── src/
+│   ├── lib.rs          # Núcleo: Sauvola threshold, preprocess_image_sync
+│   ├── layout.rs       # LayoutAnalyzer — detección de tablas con ONNX
+│   ├── ocr.rs          # OcrEngine — reconocimiento de texto con ONNX
+│   ├── bindings_napi.rs # Bindings específicos para Node.js
+│   ├── bindings_pyo3.rs # Bindings específicos para Python
+│   └── bindings_wasm.rs # Bindings específicos para WebAssembly
+├── index.js            # Binding NAPI-RS para Node.js (auto-generado)
+├── index.d.ts          # Declaraciones de tipos TypeScript para Node.js
+├── models/             # Modelos ONNX (gitignored, descarga bajo demanda)
 └── LICENSE             # Licencia MIT
 ```
 
