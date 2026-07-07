@@ -1,23 +1,27 @@
 #![deny(clippy::all)]
 
 use image::{ImageFormat, io::Reader, GrayImage};
-use napi::bindgen_prelude::*;
-use napi_derive::napi;
 use std::io::Cursor;
+
+#[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{System, SystemExt};
 
+#[cfg(all(not(target_arch = "wasm32"), feature = "onnx"))]
 pub mod layout;
+#[cfg(all(not(target_arch = "wasm32"), feature = "onnx"))]
 pub mod ocr;
+
+#[cfg(feature = "nodejs")]
+pub mod bindings_napi;
+
+#[cfg(feature = "python")]
+pub mod bindings_pyo3;
+
+#[cfg(target_arch = "wasm32")]
+pub mod bindings_wasm;
 
 #[derive(Clone)]
 pub struct PreprocessConfigRs {
-  pub window_size: Option<u32>,
-  pub k: Option<f64>,
-  pub target_width: Option<u32>,
-}
-
-#[napi(object)]
-pub struct PreprocessConfig {
   pub window_size: Option<u32>,
   pub k: Option<f64>,
   pub target_width: Option<u32>,
@@ -88,6 +92,79 @@ pub fn sauvola_threshold(img: &GrayImage, window_size: u32, k: f32) -> GrayImage
   out_img
 }
 
+fn preprocess_image_sync(
+  data: Vec<u8>,
+  window_size: u32,
+  k_param: f32,
+  user_target_width: Option<u32>,
+) -> std::result::Result<Vec<u8>, String> {
+  // 1. Verificar memoria RAM libre si no hay ancho objetivo especificado
+  let target_width = match user_target_width {
+    Some(w) => w,
+    None => {
+      #[cfg(not(target_arch = "wasm32"))]
+      {
+        let mut system = System::new_all();
+        system.refresh_memory();
+        let free_ram_kb = system.available_memory();
+        let free_ram_mb = free_ram_kb / 1024;
+        if free_ram_mb < 400 {
+          1280
+        } else {
+          1920
+        }
+      }
+      #[cfg(target_arch = "wasm32")]
+      {
+        1280
+      }
+    }
+  };
+
+  // 2. Cargar metadatos rápida sin decodificar toda la imagen en RAM
+  let reader = Reader::new(Cursor::new(&data))
+    .with_guessed_format()
+    .map_err(|e| format!("Formato no soportado: {}", e))?;
+
+  let format = reader.format().ok_or_else(|| {
+    "No se pudo determinar el formato de imagen".to_string()
+  })?;
+
+  let dimensions = reader.into_dimensions().map_err(|e| {
+    format!("No se pudieron leer las dimensiones de la imagen: {}", e)
+  })?;
+
+  let width = dimensions.0;
+  let height = dimensions.1;
+
+  // 3. Decodificar la imagen real
+  let img = image::load_from_memory_with_format(&data, format).map_err(|e| {
+    format!("Error al decodificar la imagen: {}", e)
+  })?;
+
+  // 4. Redimensionar si supera la resolución objetivo
+  let resized_img = if width > target_width {
+    let filter = image::imageops::FilterType::Lanczos3; // Conservar alta nitidez
+    img.resize(target_width, ((target_width as f32 / width as f32) * height as f32) as u32, filter)
+  } else {
+    img
+  };
+
+  // 5. Convertir a escala de grises (Luma8)
+  let gray_img = resized_img.to_luma8();
+
+  // 6. Binarización adaptativa local de Sauvola (remueve sombras y arrugas)
+  let contrast_img = sauvola_threshold(&gray_img, window_size, k_param);
+
+  // 7. Escribir búfer de salida como PNG sin pérdidas
+  let mut output_buf = Vec::new();
+  contrast_img.write_to(&mut Cursor::new(&mut output_buf), ImageFormat::Png).map_err(|e| {
+    format!("Error al codificar imagen de salida: {}", e)
+  })?;
+
+  Ok(output_buf)
+}
+
 pub async fn preprocess_image_rs(data: Vec<u8>, config: Option<PreprocessConfigRs>) -> std::result::Result<Vec<u8>, String> {
   // Obtener parámetros de configuración con valores por defecto
   let (window_size, k_param, user_target_width) = match config {
@@ -99,81 +176,15 @@ pub async fn preprocess_image_rs(data: Vec<u8>, config: Option<PreprocessConfigR
     None => (25, 0.2f32, None),
   };
 
-  let result = tokio::task::spawn_blocking(move || {
-    // 1. Verificar memoria RAM libre si no hay ancho objetivo especificado
-    let target_width = match user_target_width {
-      Some(w) => w,
-      None => {
-        let mut system = System::new_all();
-        system.refresh_memory();
-        let free_ram_kb = system.available_memory();
-        let free_ram_mb = free_ram_kb / 1024;
-        if free_ram_mb < 400 {
-          1280
-        } else {
-          1920
-        }
-      }
-    };
+  #[cfg(not(target_arch = "wasm32"))]
+  {
+    tokio::task::spawn_blocking(move || {
+      preprocess_image_sync(data, window_size, k_param, user_target_width)
+    }).await.map_err(|e| format!("Fallo del hilo de trabajo: {}", e))?
+  }
 
-    // 2. Cargar metadatos rápida sin decodificar toda la imagen en RAM
-    let reader = Reader::new(Cursor::new(&data))
-      .with_guessed_format()
-      .map_err(|e| format!("Formato no soportado: {}", e))?;
-
-    let format = reader.format().ok_or_else(|| {
-      "No se pudo determinar el formato de imagen".to_string()
-    })?;
-
-    let dimensions = reader.into_dimensions().map_err(|e| {
-      format!("No se pudieron leer las dimensiones de la imagen: {}", e)
-    })?;
-
-    let width = dimensions.0;
-    let height = dimensions.1;
-
-    // 3. Decodificar la imagen real
-    let img = image::load_from_memory_with_format(&data, format).map_err(|e| {
-      format!("Error al decodificar la imagen: {}", e)
-    })?;
-
-    // 4. Redimensionar si supera la resolución objetivo
-    let resized_img = if width > target_width {
-      let filter = image::imageops::FilterType::Lanczos3; // Conservar alta nitidez
-      img.resize(target_width, ((target_width as f32 / width as f32) * height as f32) as u32, filter)
-    } else {
-      img
-    };
-
-    // 5. Convertir a escala de grises (Luma8)
-    let gray_img = resized_img.to_luma8();
-
-    // 6. Binarización adaptativa local de Sauvola (remueve sombras y arrugas)
-    let contrast_img = sauvola_threshold(&gray_img, window_size, k_param);
-
-    // 7. Escribir búfer de salida como PNG sin pérdidas
-    let mut output_buf = Vec::new();
-    contrast_img.write_to(&mut Cursor::new(&mut output_buf), ImageFormat::Png).map_err(|e| {
-      format!("Error al codificar imagen de salida: {}", e)
-    })?;
-
-    Ok(output_buf)
-  }).await.map_err(|e| format!("Fallo del hilo de trabajo: {}", e))?;
-
-  result
-}
-
-#[napi]
-pub async fn preprocess_image(input_buf: Buffer, config: Option<PreprocessConfig>) -> Result<Buffer> {
-  let data = input_buf.to_vec();
-  let rs_config = config.map(|c| PreprocessConfigRs {
-      window_size: c.window_size,
-      k: c.k,
-      target_width: c.target_width,
-  });
-
-  match preprocess_image_rs(data, rs_config).await {
-      Ok(buf) => Ok(Buffer::from(buf)),
-      Err(e) => Err(Error::new(Status::GenericFailure, e)),
+  #[cfg(target_arch = "wasm32")]
+  {
+    preprocess_image_sync(data, window_size, k_param, user_target_width)
   }
 }

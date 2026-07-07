@@ -1,6 +1,7 @@
 {
   "name": "bgustreadimg",
-  "version": "0.1.4",
+  "version": "0.1.5",
+  "description": "Adaptive image preprocessing engine for OCR pipelines — Sauvola binarization in O(N) with Rust",
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
@@ -12,9 +13,20 @@
     }
   },
   "scripts": {
-    "build": "napi build --platform --release",
-    "build:debug": "napi build --platform"
+    "build": "napi build --platform --release --features nodejs",
+    "build:debug": "napi build --platform --features nodejs",
+    "build:wasm": "~/.cargo/bin/wasm-pack build --target web --out-dir pkg-wasm -- --no-default-features --features wasm && node scripts/prepare-wasm-pkg.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/B-GUST/bgustreadimg.git"
+  },
+  "keywords": ["ocr", "image-processing", "sauvola", "binarization", "preprocessing", "rust"],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/B-GUST/bgustreadimg/issues"
+  },
+  "homepage": "https://github.com/B-GUST/bgustreadimg",
   "devDependencies": {
     "@napi-rs/cli": "^2.15.0"
   }

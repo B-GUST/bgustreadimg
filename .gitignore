@@ -16,6 +16,7 @@ package-lock.json
 cli.js
 generate_test_*.py
 test_*.py
+test.js
 test_*.js
 *.png
 *.jpg

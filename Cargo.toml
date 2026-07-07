@@ -1,6 +1,6 @@
 [package]
 name = "bgustreadimg"
-version = "0.1.4"
+version = "0.1.5"
 description = "Adaptive image preprocessing engine for OCR — Sauvola binarization, layout detection, and ONNX-based OCR inference"
 authors = ["B-GUST"]
 license = "MIT"
@@ -17,13 +17,30 @@ crate-type = ["cdylib", "rlib"]
 [workspace]
 
 [dependencies]
-napi = { version = "2.12.0", default-features = false, features = ["async", "napi4"] }
-napi-derive = "2.12.0"
 image = { version = "0.24.7", default-features = false, features = ["png", "jpeg"] }
-sysinfo = "0.29.11"
-tokio = { version = "1.28.0", features = ["rt", "rt-multi-thread"] }
-ort = "2.0.0-rc.9"
 ndarray = "0.15"
 
+# Bindings opcionales
+napi = { version = "2.12.0", default-features = false, features = ["async", "napi4"], optional = true }
+napi-derive = { version = "2.12.0", optional = true }
+pyo3 = { version = "0.22", features = ["extension-module"], optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+sysinfo = "0.29.11"
+tokio = { version = "1.28.0", features = ["rt", "rt-multi-thread"] }
+ort = { version = "2.0.0-rc.9", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+
 [build-dependencies]
-napi-build = "2.0.1"
+napi-build = { version = "2.0.1", optional = true }
+
+[features]
+default = []
+nodejs = ["dep:napi", "dep:napi-derive", "dep:napi-build", "onnx"]
+python = ["dep:pyo3"]
+wasm = []
+onnx = ["dep:ort"]
+
