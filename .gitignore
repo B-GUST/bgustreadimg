@@ -31,3 +31,7 @@ tessdata/
 
 # ONNX model binaries (download on demand)
 models/
+
+# Gemini documentation & rules
+docs/
+.agents/
