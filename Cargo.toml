@@ -1,6 +1,6 @@
 [package]
 name = "bgustreadimg"
-version = "0.1.5"
+version = "0.1.6"
 description = "Adaptive image preprocessing engine for OCR — Sauvola binarization, layout detection, and ONNX-based OCR inference"
 authors = ["B-GUST"]
 license = "MIT"
@@ -43,4 +43,16 @@ nodejs = ["dep:napi", "dep:napi-derive", "dep:napi-build", "onnx"]
 python = ["dep:pyo3"]
 wasm = []
 onnx = ["dep:ort"]
+
+[profile.release]
+opt-level = "s"      # Optimize for size
+lto = true           # Enable Link-Time Optimization (LTO)
+codegen-units = 1    # Limit code generation units to optimize harder
+panic = "abort"      # Abort on panic to remove unwinding code
+strip = true         # Strip symbols and debug info
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Os", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+
+
 
