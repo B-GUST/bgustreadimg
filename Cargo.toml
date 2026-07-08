@@ -1,6 +1,6 @@
 [package]
 name = "bgustreadimg"
-version = "0.1.6"
+version = "0.1.7"
 description = "Adaptive image preprocessing engine for OCR — Sauvola binarization, layout detection, and ONNX-based OCR inference"
 authors = ["B-GUST"]
 license = "MIT"

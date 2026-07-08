@@ -35,6 +35,19 @@ function main() {
     console.warn(`Advertencia: No se encontró el archivo origen en ${readmeSrcPath}`);
   }
 
+  // 3. Modificar bgustreadimg.js para evitar que los bundlers (como Webpack/BundlePhobia)
+  // intenten resolver estáticamente el archivo .wasm sin cargadores específicos.
+  const jsFilePath = path.join(pkgWasmDir, 'bgustreadimg.js');
+  if (fs.existsSync(jsFilePath)) {
+    let jsContent = fs.readFileSync(jsFilePath, 'utf8');
+    jsContent = jsContent.replace(
+      "new URL('bgustreadimg_bg.wasm', import.meta.url)",
+      "new URL('bgustreadimg_bg' + '.wasm', import.meta.url)"
+    );
+    fs.writeFileSync(jsFilePath, jsContent, 'utf8');
+    console.log('bgustreadimg.js modificado para compatibilidad dinámica de assets.');
+  }
+
   console.log('Preparación completada con éxito.');
 }
 
