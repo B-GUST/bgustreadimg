@@ -21,7 +21,14 @@
     "type": "git",
     "url": "git+https://github.com/B-GUST/bgustreadimg.git"
   },
-  "keywords": ["ocr", "image-processing", "sauvola", "binarization", "preprocessing", "rust"],
+  "keywords": [
+    "ocr",
+    "image-processing",
+    "sauvola",
+    "binarization",
+    "preprocessing",
+    "rust"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/B-GUST/bgustreadimg/issues"
@@ -29,5 +36,8 @@
   "homepage": "https://github.com/B-GUST/bgustreadimg",
   "devDependencies": {
     "@napi-rs/cli": "^2.15.0"
+  },
+  "dependencies": {
+    "bgustreadimg-wasm": "^0.1.7"
   }
 }

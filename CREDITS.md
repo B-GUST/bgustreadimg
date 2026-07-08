@@ -2,9 +2,10 @@
 
 ## Algoritmo de Binarización Adaptativa
 
-El núcleo de **bgustreadimg** implementa el **Algoritmo de Sauvola** para binarización adaptativa de imágenes, basado en el trabajo académico original:
+El núcleo de **bgustreadimg** implementa el **Algoritmo de Sauvola** para binarización adaptativa de imágenes, basado en los trabajos académicos originales:
 
-- **J. Sauvola and M. Pietikäinen**, *"Adaptive document image binarization"*, Pattern Recognition, vol. 33, no. 2, pp. 225–236, 2000.
+- **J. Sauvola, T. Seppänen, S. Haapakoski, and M. Pietikäinen**, *"Adaptive document binarization"*, in *Proceedings of the Fourth International Conference on Document Analysis and Recognition (ICDAR '97)*, vol. 1, pp. 147–152, 1997. DOI: [10.1109/ICDAR.1997.619831](https://doi.org/10.1109/ICDAR.1997.619831).
+- **J. Sauvola and M. Pietikäinen**, *"Adaptive document image binarization"*, *Pattern Recognition*, vol. 33, no. 2, pp. 225–236, 2000. DOI: [10.1016/S0031-3203(99)00055-2](https://doi.org/10.1016/S0031-3203(99)00055-2).
 
 La implementación en Rust utiliza **Summed Area Tables (SAT)** para lograr una complejidad O(N) independientemente del tamaño de la ventana, optimizando el algoritmo original para procesamiento en tiempo real.
 
