@@ -44,9 +44,10 @@ fi
 echo ""
 echo "Select installation target:"
 echo "1) NPM Package (Node.js Backend native addon)"
-echo "2) PyPI Package (Python Module via pip)"
-echo "3) Clone & Build from source (Rust & Cargo)"
-echo "4) Exit"
+echo "2) NPM Package (JS WebAssembly/Browser module)"
+echo "3) PyPI Package (Python Module via pip)"
+echo "4) Clone & Build from source (Rust & Cargo)"
+echo "5) Exit"
 echo ""
 
 # Default to auto-detect if run non-interactively
@@ -55,20 +56,20 @@ if [ ! -t 0 ]; then
     if [ ${HAS_NODE} -eq 1 ]; then
         CHOICE=1
     elif [ ${HAS_PIP} -eq 1 ]; then
-        CHOICE=2
-    elif [ ${HAS_CARGO} -eq 1 ]; then
         CHOICE=3
+    elif [ ${HAS_CARGO} -eq 1 ]; then
+        CHOICE=4
     else
         echo "Error: No compatible developer environment (Node, Pip, Cargo) found."
         exit 1
     fi
 else
-    read -p "Enter choice [1-4]: " CHOICE
+    read -p "Enter choice [1-5]: " CHOICE
 fi
 
 case $CHOICE in
     1)
-        echo "Installing NPM package..."
+        echo "Installing NPM Backend package..."
         if [ ${HAS_NODE} -eq 1 ]; then
             npm install bgustreadimg
             echo "✔ bgustreadimg successfully installed in node_modules."
@@ -78,6 +79,16 @@ case $CHOICE in
         fi
         ;;
     2)
+        echo "Installing NPM WebAssembly package..."
+        if [ ${HAS_NODE} -eq 1 ]; then
+            npm install bgustreadimg-wasm
+            echo "✔ bgustreadimg-wasm successfully installed in node_modules."
+        else
+            echo "Error: Node.js/NPM is not installed."
+            exit 1
+        fi
+        ;;
+    3)
         echo "Installing Python package..."
         if [ ${HAS_PIP} -eq 1 ]; then
             pip install bgustreadimg --break-system-packages || pip install bgustreadimg
@@ -87,7 +98,7 @@ case $CHOICE in
             exit 1
         fi
         ;;
-    3)
+    4)
         echo "Cloning and building from source..."
         if [ ${HAS_CARGO} -eq 1 ]; then
             if command -v git >/dev/null 2>&1; then
