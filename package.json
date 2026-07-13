@@ -1,6 +1,6 @@
 {
   "name": "bgustreadimg",
-  "version": "0.1.7",
+  "version": "0.2.0",
   "description": "Adaptive image preprocessing engine for OCR pipelines — Sauvola binarization in O(N) with Rust",
   "main": "index.js",
   "types": "index.d.ts",
