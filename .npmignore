@@ -1,0 +1,30 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+
+# Node / NPM
+/node_modules/
+/npm/
+package-lock.json
+*.tgz
+*.node
+
+# Testing artifacts
+cli.js
+generate_test_*.py
+test_*.py
+test.js
+test_*.js
+*.png
+*.jpg
+*.jpeg
+tessdata/
+
+# IDEs & System
+.GCC/
+.vscode/
+.idea/
+.DS_Store
+
+# ONNX model binaries
+models/
